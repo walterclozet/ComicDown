@@ -5,13 +5,13 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>ab5240a2-f55a-4e38-a424-93012ae0231c</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>TestPy.py</StartupFile>
+    <StartupFile>ComicDown.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
-    <Name>TestPy</Name>
-    <RootNamespace>TestPy</RootNamespace>
+    <Name>ComicDown</Name>
+    <RootNamespace>ComicDown</RootNamespace>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -22,7 +22,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="TestPy.py" />
+    <Compile Include="ComicDown.py" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
