@@ -4,13 +4,23 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 import urllib
-import urllib2
+try:
+    # For Python 3.0 and later
+    import urllib.request
+except ImportError:
+    # Fall back to Python 2's urllib2
+    import urllib2
+import os
 import base64
 import os
 import PyV8
 from PyV8 import convert
 import sys
 import io
+import json
+
+# global config
+comic_dest_dir = 'e:\\comic\\'
 
 # basic functions
 
@@ -271,6 +281,17 @@ def get_chapters_manhuagui(url):
         res.append([title, 'http://www.manhuagui.com' +link])
     return res  
 
+def get_chapters_163(url):
+    html_text = fetch_html(url)
+    html_text = html_text.decode('utf-8');
+    result = json.loads(html_text);
+    sections = result["catalog"]["sections"][0]["sections"]
+    res = []
+    for section in sections:
+        res.append([section["fullTitle"], 'https://manhua.163.com/reader/' + section["bookId"] + '/' + section["sectionId"]]);
+    return res;
+    
+
 def extrac_code(htmltext):
     packed_code = get_sub_text(htmltext, 'packed="', '";')
     return packed_code
@@ -285,6 +306,10 @@ def extrac_code_tx(htmltext):
 
 def extrac_code_manhuagui(htmltext):
     packed_code = 'eval' + get_sub_text(htmltext, '<script type="text/javascript">window', '</script>')[20:]
+    return packed_code
+
+def extrac_code_163(htmltext):
+    packed_code = 'js_images' + get_sub_text(htmltext, 'window.PG_CONFIG.images', '</script>')
     return packed_code
 
 def decode_code_733dm(packed_code):
@@ -417,6 +442,24 @@ def comic_down_733dm(url, dest_dir):
 
 
 
+def decode_code_163(js_code):
+    js_code = """
+        (function(){
+	        function GetImg(){
+                    var window = {"IS_SUPPORT_WEBP":0}
+	                """ + js_code + """
+		            return js_images;
+	            }
+            return GetImg();
+        })
+    """
+    #print js_code
+    ctxt = PyV8.JSContext()
+    ctxt.enter()
+    func = ctxt.eval(js_code)
+    return func()
+
+
 
 def comic_down_dmzj(url, dest_dir):
     book_html = fetch_html(url)
@@ -512,11 +555,45 @@ def comic_down_manhuagui(url, dest_dir):
         touch_file(ch_dir + '.finish')       
         print ('chapter ' + str(i + 1) + ' end')
 
+
+def comic_down_163(url, dest_dir):
+    book_html = fetch_html(url)
+    chapters = get_chapters_163(url)
+    start_chapter = 0
+    print(chapters)
+   	
+    for i in range(len(chapters)):
+        title = chapters[i][0]
+        link = chapters[i][1]
+        print (link)
+        html_text = fetch_html(link)
+        html_text = html_text.decode('utf-8')
+        seed_len = int(get_sub_text(html_text, 'window.DATA.seedLength = ', ';'))
+        code = extrac_code_163(html_text)
+        ch_dir = dest_dir + '\\chapter_' + str(i + 1).zfill(3) + '_' + title + '\\'
+        if (not os.path.exists(ch_dir)):
+            os.makedirs(ch_dir)
+        #build_html(i + 1, code)
+        js_images = decode_code_163(code)
+        for j in range(0, len(js_images)):
+            if (js_images[j] is None):
+                continue
+            img_url = js_images[j].url.decode('utf-8')[0:-seed_len]
+            img_file = ch_dir + 'P_{:0>3d}.jpg'.format(j)    
+            print ('saving ' + img_url)
+            res = save_img(img_url, img_file, link)
+            if (not res):
+                print ('saving failed')
+                
+        touch_file(ch_dir + '.finish')       
+        print ('chapter ' + str(i + 1) + ' end')
+
+
 def comic_down():
     url = 'http://www.733dm.net/mh/'
     id = raw_input('input comic id:')
     url = url + id
-    dest_dir = 'd:\\book_'+ str(id).zfill(7)
+    dest_dir = comic_dest_dir + 'book_'+ str(id).zfill(7)
     if (not os.path.exists(dest_dir)):
         os.makedirs(dest_dir)
     os.chdir(dest_dir)
@@ -540,6 +617,12 @@ def comic_down():
         title = get_title(url)
         if title != '错误提示 - 腾讯动漫':
             match.append(['tx', url, title])
+    url = 'https://manhua.163.com/source/'
+    url = url + id + '/'
+    if test_url(url):
+        title = get_title(url)
+        if title[0:len('网易漫画-海量优质内容')] != '网易漫画-海量优质内容':
+            match.append(['163', 'https://manhua.163.com/book/catalog/' + id + '.json', title])
     for i in range(len(match)):
         print (i, match[i][2])
     num = 0
